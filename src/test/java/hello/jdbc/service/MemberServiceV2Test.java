@@ -1,9 +1,8 @@
 package hello.jdbc.service;
 
-import hello.jdbc.connection.ConnectionConst;
 import hello.jdbc.domain.Member;
 import hello.jdbc.repository.MemberRepositoryV1;
-import org.assertj.core.api.Assertions;
+import hello.jdbc.repository.MemberRepositoryV2;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,19 +12,19 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import java.sql.SQLException;
 
 import static hello.jdbc.connection.ConnectionConst.*;
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class MemberServiceV1Test {
+class MemberServiceV2Test {
 
-    private MemberRepositoryV1 repository;
-    private MemberServiceV1 service;
+    private MemberRepositoryV2 repository;
+    private MemberServiceV2 service;
 
     @BeforeEach
     void init() {
-        DriverManagerDataSource driverManagerDataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
-        repository = new MemberRepositoryV1(driverManagerDataSource);
-        service = new MemberServiceV1(repository);
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+        repository = new MemberRepositoryV2(dataSource);
+        service = new MemberServiceV2(repository, dataSource);
     }
 
     @AfterEach
@@ -43,9 +42,12 @@ class MemberServiceV1Test {
         repository.save(member1);
         repository.save(member2);
 
-        service.transfer("A", "B", 2000);
+        service.transfer(member1.getMemberId(), member2.getMemberId(), 2000);
 
-        assertThat(repository.findById("A").getMoney()).isEqualTo(8000);
+        Member findMemberA = repository.findById(member1.getMemberId());
+        Member findMemberB = repository.findById(member2.getMemberId());
+
+        assertThat(findMemberA.getMoney()).isEqualTo(8000);
 
     }
 
@@ -58,10 +60,13 @@ class MemberServiceV1Test {
         repository.save(member2);
 
 
+        Member findMemberA = repository.findById(member1.getMemberId());
+        Member findMemberB = repository.findById(member2.getMemberId());
+
         assertThatThrownBy(() -> service.transfer("A", "XXX", 2000))
                 .isInstanceOf(IllegalStateException.class);
-        assertThat(repository.findById("A").getMoney()).isEqualTo(8000);
-        assertThat(repository.findById("XXX").getMoney()).isEqualTo(22000);
+        assertThat(findMemberA.getMoney()).isEqualTo(10000);
+        assertThat(findMemberB.getMoney()).isEqualTo(20000);
 
     }
 }
